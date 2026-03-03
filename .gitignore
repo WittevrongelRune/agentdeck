@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.local
+
+# Build artifacts
+backend/dist/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db

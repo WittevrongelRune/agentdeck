@@ -1,0 +1,23 @@
+{
+  "name": "agentdeck-backend",
+  "version": "1.0.0",
+  "description": "AgentDeck backend — PTY + WebSocket server",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "tsx server.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

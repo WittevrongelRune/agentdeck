@@ -1,0 +1,15 @@
+{
+  "name": "agentdeck",
+  "version": "1.0.0",
+  "description": "All your agents, one screen.",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "concurrently \"npm run start --prefix backend\" \"npm run start --prefix frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
