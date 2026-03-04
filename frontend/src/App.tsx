@@ -32,6 +32,13 @@ export default function App() {
     });
   };
 
+  const removeTerminal = (id: number) => {
+    setTerminalIds((ids) => {
+      if (ids.length <= 1) return ids; // always keep at least one
+      return ids.filter((i) => i !== id);
+    });
+  };
+
   const count = terminalIds.length;
 
   return (
@@ -50,7 +57,7 @@ export default function App() {
             key={id}
             style={{ overflow: 'hidden', minWidth: 0, minHeight: 0 }}
           >
-            <TerminalPane />
+            <TerminalPane onClose={() => removeTerminal(id)} />
           </div>
         ))}
       </div>
