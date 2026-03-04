@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "tsx server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true"
   },
   "dependencies": {
     "node-pty": "^1.0.0",
