@@ -3,7 +3,7 @@ import * as pty from 'node-pty';
 import os from 'os';
 
 const PORT = 3001;
-const shell = process.platform === 'win32' ? 'bash.exe' : '/bin/bash';
+const shell = process.platform === 'win32' ? 'bash.exe' : (process.env.SHELL ?? '/bin/zsh');
 
 const wss = new WebSocketServer({ port: PORT });
 
@@ -22,7 +22,7 @@ wss.on('connection', (ws: WebSocket) => {
   const id = ++terminalCounter;
   console.log(`terminal-${id} connected`);
 
-  const ptyProcess = pty.spawn(shell, [], {
+  const ptyProcess = pty.spawn(shell, ['--login'], {
     name: 'xterm-color',
     cols: 80,
     rows: 24,
