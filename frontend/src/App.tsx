@@ -1,82 +1,82 @@
-import { useEffect, useRef } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import '@xterm/xterm/css/xterm.css';
+import { useState } from 'react';
+import TerminalPane from './components/TerminalPane.js';
+
+const MAX_TERMINALS = 4;
+
+// CSS Grid templates per aantal terminals
+const gridTemplates: Record<number, { areas: string; columns: string; rows: string }> = {
+  1: { areas: '"a"',           columns: '1fr',      rows: '1fr' },
+  2: { areas: '"a b"',         columns: '1fr 1fr',  rows: '1fr' },
+  3: { areas: '"a b" "c c"',   columns: '1fr 1fr',  rows: '1fr 1fr' },
+  4: { areas: '"a b" "c d"',   columns: '1fr 1fr',  rows: '1fr 1fr' },
+};
+
+const gridAreas = ['a', 'b', 'c', 'd'];
 
 export default function App() {
-  const terminalRef = useRef<HTMLDivElement>(null);
+  const [terminalIds, setTerminalIds] = useState<number[]>([1]);
 
-  useEffect(() => {
-    // F6 fix: guard against null ref
-    if (!terminalRef.current) return;
-
-    const term = new Terminal({
-      cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      theme: {
-        background: '#1a1a1a',
-        foreground: '#d4d4d4',
-      },
+  const addTerminal = () => {
+    setTerminalIds((ids) => {
+      if (ids.length >= MAX_TERMINALS) return ids;
+      const nextId = Math.max(...ids) + 1;
+      return [...ids, nextId];
     });
+  };
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-
-    // F7 fix: defer fit() until after browser has painted real dimensions
-    const rafId = requestAnimationFrame(() => fitAddon.fit());
-
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
-
-    ws.onopen = () => {
-      term.writeln('Connected to AgentDeck backend.');
-    };
-
-    ws.onmessage = (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data as string) as { type: string; message: string };
-        if (msg.type === 'server_ready') {
-          term.writeln(msg.message);
-        } else {
-          term.write(event.data as string);
-        }
-      } catch {
-        term.write(event.data as string);
-      }
-    };
-
-    ws.onerror = () => {
-      term.writeln('\r\nWebSocket error. Is the backend running?');
-    };
-
-    ws.onclose = () => {
-      term.writeln('\r\nDisconnected from backend.');
-    };
-
-    term.onData((data: string) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
-
-    const handleResize = () => fitAddon.fit();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', handleResize);
-      // F15 fix: null out onclose before closing to avoid write-after-dispose
-      ws.onclose = null;
-      ws.close();
-      term.dispose();
-    };
-  }, []);
+  const count = terminalIds.length;
+  const template = gridTemplates[count] ?? gridTemplates[4];
 
   return (
-    <div
-      ref={terminalRef}
-      style={{ width: '100%', height: '100%', padding: '8px' }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#1a1a1a' }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'grid',
+          gridTemplateAreas: template.areas,
+          gridTemplateColumns: template.columns,
+          gridTemplateRows: template.rows,
+          gap: '2px',
+          backgroundColor: '#333',
+        }}
+      >
+        {terminalIds.map((id, index) => (
+          <div
+            key={id}
+            style={{ gridArea: gridAreas[index], overflow: 'hidden', minWidth: 0, minHeight: 0 }}
+          >
+            <TerminalPane />
+          </div>
+        ))}
+      </div>
+
+      {count < MAX_TERMINALS && (
+        <button
+          onClick={addTerminal}
+          title="New terminal"
+          style={{
+            position: 'absolute',
+            bottom: '16px',
+            right: '16px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: '#444',
+            color: '#d4d4d4',
+            fontSize: '20px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+          }}
+        >
+          +
+        </button>
+      )}
+    </div>
   );
 }
