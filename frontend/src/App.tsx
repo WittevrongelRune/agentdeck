@@ -1,17 +1,25 @@
 import { useState } from 'react';
 import TerminalPane from './components/TerminalPane.js';
 
-const MAX_TERMINALS = 4;
+const MAX_TERMINALS = 10;
 
-// CSS Grid templates per aantal terminals
-const gridTemplates: Record<number, { areas: string; columns: string; rows: string }> = {
-  1: { areas: '"a"',           columns: '1fr',      rows: '1fr' },
-  2: { areas: '"a b"',         columns: '1fr 1fr',  rows: '1fr' },
-  3: { areas: '"a b" "c c"',   columns: '1fr 1fr',  rows: '1fr 1fr' },
-  4: { areas: '"a b" "c d"',   columns: '1fr 1fr',  rows: '1fr 1fr' },
-};
-
-const gridAreas = ['a', 'b', 'c', 'd'];
+// Compute a 2-column CSS grid layout for N terminals.
+// 1 terminal = single column, 2+ = 2 columns with enough rows.
+function getGridStyle(count: number): React.CSSProperties {
+  if (count === 1) {
+    return {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      gridTemplateRows: '1fr',
+    };
+  }
+  const rows = Math.ceil(count / 2);
+  return {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gridTemplateRows: `repeat(${rows}, 1fr)`,
+  };
+}
 
 export default function App() {
   const [terminalIds, setTerminalIds] = useState<number[]>([1]);
@@ -25,7 +33,6 @@ export default function App() {
   };
 
   const count = terminalIds.length;
-  const template = gridTemplates[count] ?? gridTemplates[4];
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#1a1a1a' }}>
@@ -33,18 +40,15 @@ export default function App() {
         style={{
           width: '100%',
           height: '100%',
-          display: 'grid',
-          gridTemplateAreas: template.areas,
-          gridTemplateColumns: template.columns,
-          gridTemplateRows: template.rows,
           gap: '2px',
           backgroundColor: '#333',
+          ...getGridStyle(count),
         }}
       >
-        {terminalIds.map((id, index) => (
+        {terminalIds.map((id) => (
           <div
             key={id}
-            style={{ gridArea: gridAreas[index], overflow: 'hidden', minWidth: 0, minHeight: 0 }}
+            style={{ overflow: 'hidden', minWidth: 0, minHeight: 0 }}
           >
             <TerminalPane />
           </div>
