@@ -22,9 +22,9 @@ export function useTerminal(containerRef: RefObject<HTMLDivElement>) {
 
     const rafId = requestAnimationFrame(() => fitAddon.fit());
 
-    // F3: derive protocol from page scheme so wss:// works with HTTPS
+    // Connect directly to backend — Vite proxy for WebSockets is unreliable
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+    const ws = new WebSocket(`${wsProtocol}//localhost:3001`);
 
     ws.onopen = () => {
       // Send initial size once connected
