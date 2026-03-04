@@ -4,6 +4,9 @@ import '@xterm/xterm/css/xterm.css';
 
 interface TerminalPaneProps {
   id: number;
+  canSplit: boolean;
+  onSplitH: () => void;
+  onSplitV: () => void;
   onClose?: () => void;
 }
 
@@ -14,7 +17,58 @@ const CloseIcon = () => (
   </svg>
 );
 
-export default function TerminalPane({ id, onClose }: TerminalPaneProps) {
+// Vertical split (side by side)
+const SplitHIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <rect x="3" y="3" width="18" height="18" rx="1" />
+    <line x1="12" y1="3" x2="12" y2="21" />
+  </svg>
+);
+
+// Horizontal split (top/bottom)
+const SplitVIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <rect x="3" y="3" width="18" height="18" rx="1" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+  </svg>
+);
+
+function HeaderButton({
+  onClick,
+  title,
+  visible,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  visible: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '18px',
+        height: '18px',
+        borderRadius: '3px',
+        border: 'none',
+        background: visible ? '#1e2d3d' : 'transparent',
+        color: visible ? '#94a3b8' : 'transparent',
+        cursor: 'pointer',
+        transition: 'all 150ms ease',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function TerminalPane({ id, canSplit, onSplitH, onSplitV, onClose }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   useTerminal(containerRef);
@@ -30,43 +84,40 @@ export default function TerminalPane({ id, onClose }: TerminalPaneProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 10px',
+        padding: '0 8px',
         height: '28px',
         minHeight: '28px',
         background: '#0d1117',
         borderBottom: '1px solid #1e2d3d',
         flexShrink: 0,
+        gap: '4px',
       }}>
         <span style={{
           fontFamily: "'Fira Code', monospace",
           fontSize: '11px',
           color: '#475569',
+          flex: 1,
         }}>
           terminal <span style={{ color: '#64748b' }}>{id}</span>
         </span>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            title="Close terminal"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '18px',
-              height: '18px',
-              borderRadius: '3px',
-              border: 'none',
-              background: hovered ? '#1e2d3d' : 'transparent',
-              color: hovered ? '#94a3b8' : 'transparent',
-              cursor: 'pointer',
-              transition: 'all 150ms ease',
-              flexShrink: 0,
-            }}
-          >
-            <CloseIcon />
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {canSplit && (
+            <>
+              <HeaderButton onClick={onSplitH} title="Split right" visible={hovered}>
+                <SplitHIcon />
+              </HeaderButton>
+              <HeaderButton onClick={onSplitV} title="Split down" visible={hovered}>
+                <SplitVIcon />
+              </HeaderButton>
+            </>
+          )}
+          {onClose && (
+            <HeaderButton onClick={onClose} title="Close terminal" visible={hovered}>
+              <CloseIcon />
+            </HeaderButton>
+          )}
+        </div>
       </div>
 
       {/* Terminal */}

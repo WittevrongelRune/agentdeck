@@ -1,21 +1,9 @@
-import { useState } from 'react';
-import TerminalPane from './components/TerminalPane.js';
+import { useState, useRef } from 'react';
+import SplitPane from './components/SplitPane.js';
+import { PaneNode, splitNode, closeNode, updateRatio, countLeaves } from './types/pane.js';
 
 const MAX_TERMINALS = 10;
 
-function getGridStyle(count: number): React.CSSProperties {
-  if (count === 1) {
-    return { display: 'grid', gridTemplateColumns: '1fr', gridTemplateRows: '1fr' };
-  }
-  const rows = Math.ceil(count / 2);
-  return {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gridTemplateRows: `repeat(${rows}, 1fr)`,
-  };
-}
-
-// SVG icons
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19" />
@@ -31,24 +19,35 @@ const TerminalIcon = () => (
 );
 
 export default function App() {
-  const [terminalIds, setTerminalIds] = useState<number[]>([1]);
+  const [tree, setTree] = useState<PaneNode>({ type: 'leaf', id: 1 });
+  const nextId = useRef<number>(2);
 
-  const addTerminal = () => {
-    setTerminalIds((ids) => {
-      if (ids.length >= MAX_TERMINALS) return ids;
-      const nextId = Math.max(...ids) + 1;
-      return [...ids, nextId];
+  const count = countLeaves(tree);
+  const canSplit = count < MAX_TERMINALS;
+
+  const handleSplit = (id: number, direction: 'h' | 'v') => {
+    const newId = nextId.current++;
+    setTree((prev) => splitNode(prev, id, direction, newId));
+  };
+
+  const handleClose = (id: number) => {
+    setTree((prev) => {
+      const result = closeNode(prev, id);
+      return result ?? prev;
     });
   };
 
-  const removeTerminal = (id: number) => {
-    setTerminalIds((ids) => {
-      if (ids.length <= 1) return ids;
-      return ids.filter((i) => i !== id);
-    });
+  const handleRatioChange = (path: string[], ratio: number) => {
+    setTree((prev) => updateRatio(prev, path, ratio));
   };
 
-  const count = terminalIds.length;
+  const handleAddTerminal = () => {
+    if (!canSplit) return;
+    // Find the rightmost leaf to split into
+    let node: PaneNode = tree;
+    while (node.type === 'split') node = node.b;
+    handleSplit(node.id, 'h');
+  };
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0e1a' }}>
@@ -64,7 +63,6 @@ export default function App() {
         borderBottom: '1px solid #1e2d3d',
         flexShrink: 0,
       }}>
-        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <TerminalIcon />
           <span style={{
@@ -85,10 +83,9 @@ export default function App() {
           </span>
         </div>
 
-        {/* Add terminal button */}
-        {count < MAX_TERMINALS && (
+        {canSplit && (
           <button
-            onClick={addTerminal}
+            onClick={handleAddTerminal}
             title="New terminal"
             style={{
               display: 'flex',
@@ -119,22 +116,17 @@ export default function App() {
         )}
       </header>
 
-      {/* Terminal grid */}
-      <div style={{
-        flex: 1,
-        minHeight: 0,
-        gap: '1px',
-        background: '#1e2d3d',
-        ...getGridStyle(count),
-      }}>
-        {terminalIds.map((id) => (
-          <div key={id} style={{ overflow: 'hidden', minWidth: 0, minHeight: 0, background: '#0a0e1a' }}>
-            <TerminalPane
-              id={id}
-              onClose={count > 1 ? () => removeTerminal(id) : undefined}
-            />
-          </div>
-        ))}
+      {/* Split pane tree */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <SplitPane
+          node={tree}
+          path={[]}
+          canSplit={canSplit}
+          onSplit={handleSplit}
+          onClose={handleClose}
+          onRatioChange={handleRatioChange}
+          isOnlyPane={count === 1}
+        />
       </div>
     </div>
   );
