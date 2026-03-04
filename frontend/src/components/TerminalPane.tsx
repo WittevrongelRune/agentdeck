@@ -3,50 +3,83 @@ import { useTerminal } from '../hooks/useTerminal.js';
 import '@xterm/xterm/css/xterm.css';
 
 interface TerminalPaneProps {
-  onClose: () => void;
+  id: number;
+  onClose?: () => void;
 }
 
-export default function TerminalPane({ onClose }: TerminalPaneProps) {
+const CloseIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+export default function TerminalPane({ id, onClose }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   useTerminal(containerRef);
 
   return (
     <div
-      style={{ width: '100%', height: '100%', position: 'relative' }}
+      style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Pane header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 10px',
+        height: '28px',
+        minHeight: '28px',
+        background: '#0d1117',
+        borderBottom: '1px solid #1e2d3d',
+        flexShrink: 0,
+      }}>
+        <span style={{
+          fontFamily: "'Fira Code', monospace",
+          fontSize: '11px',
+          color: '#475569',
+        }}>
+          terminal <span style={{ color: '#64748b' }}>{id}</span>
+        </span>
+
+        {onClose && (
+          <button
+            onClick={onClose}
+            title="Close terminal"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '18px',
+              height: '18px',
+              borderRadius: '3px',
+              border: 'none',
+              background: hovered ? '#1e2d3d' : 'transparent',
+              color: hovered ? '#94a3b8' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 150ms ease',
+              flexShrink: 0,
+            }}
+          >
+            <CloseIcon />
+          </button>
+        )}
+      </div>
+
+      {/* Terminal */}
       <div
         ref={containerRef}
-        style={{ width: '100%', height: '100%', overflow: 'hidden', backgroundColor: '#1a1a1a' }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          background: '#0a0e1a',
+          padding: '4px',
+        }}
       />
-      {hovered && (
-        <button
-          onClick={onClose}
-          title="Close terminal"
-          style={{
-            position: 'absolute',
-            top: '6px',
-            right: '6px',
-            width: '20px',
-            height: '20px',
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: '#666',
-            color: '#d4d4d4',
-            fontSize: '12px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            lineHeight: 1,
-            opacity: 0.85,
-          }}
-        >
-          ×
-        </button>
-      )}
     </div>
   );
 }
