@@ -3,7 +3,7 @@ import * as pty from 'node-pty';
 import os from 'os';
 
 const PORT = 3001;
-const shell = process.platform === 'win32' ? 'bash.exe' : 'bash';
+const shell = process.platform === 'win32' ? 'bash.exe' : '/bin/bash';
 
 const wss = new WebSocketServer({ port: PORT });
 
