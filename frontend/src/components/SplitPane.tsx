@@ -2,6 +2,12 @@ import { useRef } from 'react';
 import { PaneNode } from '../types/pane.js';
 import TerminalPane from './TerminalPane.js';
 
+/** Stable key for a subtree — join all leaf IDs so React never remounts existing terminals */
+function leafKey(node: PaneNode): string {
+  if (node.type === 'leaf') return String(node.id);
+  return `${leafKey(node.a)}-${leafKey(node.b)}`;
+}
+
 interface SplitPaneProps {
   node: PaneNode;
   path: string[];
@@ -77,8 +83,8 @@ export default function SplitPane({
         overflow: 'hidden',
       }}
     >
-      {/* Child A */}
-      <div style={{ flex: `0 0 calc(${aSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+      {/* Child A — key based on leaf id(s) so React never unmounts existing terminals */}
+      <div key={leafKey(node.a)} style={{ flex: `0 0 calc(${aSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
         <SplitPane
           node={node.a}
           path={[...path, 'a']}
@@ -106,8 +112,8 @@ export default function SplitPane({
         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#1e2d3d'; }}
       />
 
-      {/* Child B */}
-      <div style={{ flex: `0 0 calc(${bSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+      {/* Child B — key based on leaf id(s) so React never unmounts existing terminals */}
+      <div key={leafKey(node.b)} style={{ flex: `0 0 calc(${bSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
         <SplitPane
           node={node.b}
           path={[...path, 'b']}
