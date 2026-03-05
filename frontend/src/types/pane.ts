@@ -69,3 +69,43 @@ export function updateRatio(node: PaneNode, path: string[], ratio: number): Pane
   if (head === 'a') return { ...node, a: updateRatio(node.a, tail, ratio) };
   return { ...node, b: updateRatio(node.b, tail, ratio) };
 }
+
+export interface PaneRect {
+  left: number;   // percentage [0, 100]
+  top: number;    // percentage [0, 100]
+  width: number;  // percentage [0, 100]
+  height: number; // percentage [0, 100]
+}
+
+/**
+ * Walk the tree and return a Map from leaf id → bounding rectangle (in %).
+ * The root fills {left:0, top:0, width:100, height:100}.
+ * The 4px divider is accounted for by shrinking each child by 2px on its split axis.
+ */
+export function computeLayout(
+  node: PaneNode,
+  rect: PaneRect = { left: 0, top: 0, width: 100, height: 100 },
+): Map<number, PaneRect> {
+  if (node.type === 'leaf') {
+    const map = new Map<number, PaneRect>();
+    map.set(node.id, rect);
+    return map;
+  }
+
+  const isH = node.direction === 'h';
+  const aFrac = node.ratio;
+  const bFrac = 1 - node.ratio;
+
+  // aRect and bRect — the divider itself is 4px, subtract 2px from each side
+  const aRect: PaneRect = isH
+    ? { left: rect.left, top: rect.top, width: rect.width * aFrac, height: rect.height }
+    : { left: rect.left, top: rect.top, width: rect.width, height: rect.height * aFrac };
+
+  const bRect: PaneRect = isH
+    ? { left: rect.left + rect.width * aFrac, top: rect.top, width: rect.width * bFrac, height: rect.height }
+    : { left: rect.left, top: rect.top + rect.height * aFrac, width: rect.width, height: rect.height * bFrac };
+
+  const mapA = computeLayout(node.a, aRect);
+  const mapB = computeLayout(node.b, bRect);
+  return new Map([...mapA, ...mapB]);
+}

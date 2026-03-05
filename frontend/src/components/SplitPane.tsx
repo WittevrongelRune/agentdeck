@@ -1,44 +1,22 @@
 import { useRef } from 'react';
 import { PaneNode } from '../types/pane.js';
-import TerminalPane from './TerminalPane.js';
-
-/** Stable key for a subtree — join all leaf IDs so React never remounts existing terminals */
-function leafKey(node: PaneNode): string {
-  if (node.type === 'leaf') return String(node.id);
-  return `${leafKey(node.a)}-${leafKey(node.b)}`;
-}
 
 interface SplitPaneProps {
   node: PaneNode;
   path: string[];
-  canSplit: boolean;
-  onSplit: (id: number, direction: 'h' | 'v') => void;
-  onClose: (id: number) => void;
   onRatioChange: (path: string[], ratio: number) => void;
-  isOnlyPane: boolean;
 }
 
-export default function SplitPane({
-  node,
-  path,
-  canSplit,
-  onSplit,
-  onClose,
-  onRatioChange,
-  isOnlyPane,
-}: SplitPaneProps) {
+/**
+ * Renders only the dividers for a split-pane tree.
+ * Terminal content is rendered separately as absolutely-positioned layers
+ * so TerminalPane components never unmount when the tree changes.
+ */
+export default function SplitPane({ node, path, onRatioChange }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   if (node.type === 'leaf') {
-    return (
-      <TerminalPane
-        id={node.id}
-        canSplit={canSplit}
-        onSplitH={() => onSplit(node.id, 'h')}
-        onSplitV={() => onSplit(node.id, 'v')}
-        onClose={isOnlyPane ? undefined : () => onClose(node.id)}
-      />
-    );
+    return null;
   }
 
   const isHorizontal = node.direction === 'h';
@@ -47,7 +25,6 @@ export default function SplitPane({
 
   const handleDividerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-
     const container = containerRef.current;
     if (!container) return;
 
@@ -76,24 +53,20 @@ export default function SplitPane({
     <div
       ref={containerRef}
       style={{
-        width: '100%',
-        height: '100%',
+        position: 'absolute',
+        inset: 0,
         display: 'flex',
         flexDirection: isHorizontal ? 'row' : 'column',
-        overflow: 'hidden',
+        pointerEvents: 'none',
       }}
     >
-      {/* Child A — key based on leaf id(s) so React never unmounts existing terminals */}
-      <div key={leafKey(node.a)} style={{ flex: `0 0 calc(${aSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
-        <SplitPane
-          node={node.a}
-          path={[...path, 'a']}
-          canSplit={canSplit}
-          onSplit={onSplit}
-          onClose={onClose}
-          onRatioChange={onRatioChange}
-          isOnlyPane={false}
-        />
+      {/* Child A sub-tree dividers */}
+      <div style={{
+        flex: `0 0 ${aSize}%`,
+        position: 'relative',
+        pointerEvents: 'none',
+      }}>
+        <SplitPane node={node.a} path={[...path, 'a']} onRatioChange={onRatioChange} />
       </div>
 
       {/* Divider */}
@@ -106,23 +79,20 @@ export default function SplitPane({
           background: '#1e2d3d',
           cursor: isHorizontal ? 'col-resize' : 'row-resize',
           transition: 'background 150ms ease',
-          zIndex: 10,
+          zIndex: 20,
+          pointerEvents: 'all',
         }}
         onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#22c55e'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#1e2d3d'; }}
       />
 
-      {/* Child B — key based on leaf id(s) so React never unmounts existing terminals */}
-      <div key={leafKey(node.b)} style={{ flex: `0 0 calc(${bSize}% - 2px)`, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
-        <SplitPane
-          node={node.b}
-          path={[...path, 'b']}
-          canSplit={canSplit}
-          onSplit={onSplit}
-          onClose={onClose}
-          onRatioChange={onRatioChange}
-          isOnlyPane={false}
-        />
+      {/* Child B sub-tree dividers */}
+      <div style={{
+        flex: `0 0 ${bSize}%`,
+        position: 'relative',
+        pointerEvents: 'none',
+      }}>
+        <SplitPane node={node.b} path={[...path, 'b']} onRatioChange={onRatioChange} />
       </div>
     </div>
   );

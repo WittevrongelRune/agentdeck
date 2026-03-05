@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
 import SplitPane from './components/SplitPane.js';
-import { PaneNode, splitNode, closeNode, updateRatio, countLeaves } from './types/pane.js';
+import TerminalPane from './components/TerminalPane.js';
+import { PaneNode, splitNode, closeNode, updateRatio, countLeaves, computeLayout } from './types/pane.js';
 
 const MAX_TERMINALS = 10;
+const DIVIDER_PX = 4;
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -20,13 +22,18 @@ const TerminalIcon = () => (
 
 export default function App() {
   const [tree, setTree] = useState<PaneNode>({ type: 'leaf', id: 1 });
+  // allIds tracks every terminal that has ever been created (never removed from DOM)
+  const [allIds, setAllIds] = useState<number[]>([1]);
   const nextId = useRef<number>(2);
 
   const count = countLeaves(tree);
   const canSplit = count < MAX_TERMINALS;
 
+  const layout = computeLayout(tree);
+
   const handleSplit = (id: number, direction: 'h' | 'v') => {
     const newId = nextId.current++;
+    setAllIds(prev => [...prev, newId]);
     setTree((prev) => splitNode(prev, id, direction, newId));
   };
 
@@ -35,6 +42,10 @@ export default function App() {
       const result = closeNode(prev, id);
       return result ?? prev;
     });
+    // Note: we intentionally keep the id in allIds so the TerminalPane stays
+    // mounted (hidden), which keeps the PTY session alive while the user could
+    // undo. For a true close we remove it after the state update.
+    setAllIds(prev => prev.filter(i => i !== id));
   };
 
   const handleRatioChange = (path: string[], ratio: number) => {
@@ -43,7 +54,6 @@ export default function App() {
 
   const handleAddTerminal = () => {
     if (!canSplit) return;
-    // Find the rightmost leaf to split into
     let node: PaneNode = tree;
     while (node.type === 'split') node = node.b;
     handleSplit(node.id, 'h');
@@ -116,17 +126,46 @@ export default function App() {
         )}
       </header>
 
-      {/* Split pane tree */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        <SplitPane
-          node={tree}
-          path={[]}
-          canSplit={canSplit}
-          onSplit={handleSplit}
-          onClose={handleClose}
-          onRatioChange={handleRatioChange}
-          isOnlyPane={count === 1}
-        />
+      {/* Terminal area */}
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+
+        {/* Flat layer: one TerminalPane per id, absolutely positioned */}
+        {allIds.map(id => {
+          const rect = layout.get(id);
+          const visible = rect !== undefined;
+          return (
+            <div
+              key={id}
+              style={{
+                position: 'absolute',
+                // When not in layout (closed), park offscreen so xterm stays alive
+                // but doesn't interfere with visible panes
+                left:   visible ? `calc(${rect!.left}% + ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
+                top:    visible ? `calc(${rect!.top}%  + ${rect!.top  > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
+                width:  visible ? `calc(${rect!.width}% - ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.left + rect!.width < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
+                height: visible ? `calc(${rect!.height}% - ${rect!.top > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.top + rect!.height < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
+                overflow: 'hidden',
+              }}
+            >
+              <TerminalPane
+                id={id}
+                canSplit={canSplit}
+                onSplitH={() => handleSplit(id, 'h')}
+                onSplitV={() => handleSplit(id, 'v')}
+                onClose={count === 1 ? undefined : () => handleClose(id)}
+              />
+            </div>
+          );
+        })}
+
+        {/* Divider overlay — pointer-events:none except on divider elements themselves */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <SplitPane
+            node={tree}
+            path={[]}
+            onRatioChange={handleRatioChange}
+          />
+        </div>
       </div>
     </div>
   );
