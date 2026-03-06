@@ -109,3 +109,21 @@ export function computeLayout(
   const mapB = computeLayout(node.b, bRect);
   return new Map([...mapA, ...mapB]);
 }
+
+/**
+ * Swap two leaf nodes by id. No-op if idA === idB or either is missing.
+ */
+export function swapLeaves(node: PaneNode, idA: number, idB: number): PaneNode {
+  if (idA === idB) return node;
+
+  function swap(n: PaneNode): PaneNode {
+    if (n.type === 'leaf') {
+      if (n.id === idA) return { type: 'leaf', id: idB };
+      if (n.id === idB) return { type: 'leaf', id: idA };
+      return n;
+    }
+    return { ...n, a: swap(n.a), b: swap(n.b) };
+  }
+
+  return swap(node);
+}
