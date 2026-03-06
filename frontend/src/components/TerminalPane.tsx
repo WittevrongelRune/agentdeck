@@ -7,6 +7,7 @@ interface TerminalPaneProps {
   id: number;
   canSplit: boolean;
   canDrag: boolean;
+  isBeingDragged: boolean;
   onSplitH: () => void;
   onSplitV: () => void;
   onClose?: () => void;
@@ -68,7 +69,7 @@ function HeaderButton({
   );
 }
 
-export default function TerminalPane({ id, canSplit, canDrag, onSplitH, onSplitV, onClose }: TerminalPaneProps) {
+export default function TerminalPane({ id, canSplit, canDrag, isBeingDragged, onSplitH, onSplitV, onClose }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   useTerminal(containerRef);
@@ -89,7 +90,7 @@ export default function TerminalPane({ id, canSplit, canDrag, onSplitH, onSplitV
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box',
-        border: isOver ? '2px solid #22c55e' : '2px solid transparent',
+        border: (isOver && !isBeingDragged) ? '2px solid #22c55e' : '2px solid transparent',
         borderRadius: '2px',
         opacity: isDragging ? 0.5 : 1,
         transition: 'border-color 100ms ease, opacity 150ms ease',

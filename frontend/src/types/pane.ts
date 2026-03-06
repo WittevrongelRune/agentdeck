@@ -116,6 +116,13 @@ export function computeLayout(
 export function swapLeaves(node: PaneNode, idA: number, idB: number): PaneNode {
   if (idA === idB) return node;
 
+  function has(n: PaneNode, id: number): boolean {
+    if (n.type === 'leaf') return n.id === id;
+    return has(n.a, id) || has(n.b, id);
+  }
+
+  if (!has(node, idA) || !has(node, idB)) return node;
+
   function swap(n: PaneNode): PaneNode {
     if (n.type === 'leaf') {
       if (n.id === idA) return { type: 'leaf', id: idB };

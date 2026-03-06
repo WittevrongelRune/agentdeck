@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
+  closestCenter,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -43,10 +44,10 @@ export default function App() {
   const [dragId, setDragId] = useState<number | null>(null);
   const nextId = useRef<number>(2);
 
-  const count = countLeaves(tree);
+  const count = useMemo(() => countLeaves(tree), [tree]);
   const canSplit = count < MAX_TERMINALS;
   const canDrag = count > 1;
-  const layout = computeLayout(tree);
+  const layout = useMemo(() => computeLayout(tree), [tree]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -82,7 +83,10 @@ export default function App() {
     setDragId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setTree(prev => swapLeaves(prev, active.id as number, over.id as number));
+    const activeId = Number(active.id);
+    const overId = Number(over.id);
+    if (!Number.isFinite(activeId) || !Number.isFinite(overId)) return;
+    setTree(prev => swapLeaves(prev, activeId, overId));
   };
 
   return (
@@ -153,6 +157,7 @@ export default function App() {
 
       <DndContext
         sensors={sensors}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -176,6 +181,7 @@ export default function App() {
                   id={id}
                   canSplit={canSplit}
                   canDrag={canDrag}
+                  isBeingDragged={dragId === id}
                   onSplitH={() => handleSplit(id, 'h')}
                   onSplitV={() => handleSplit(id, 'v')}
                   onClose={count === 1 ? undefined : () => handleClose(id)}
