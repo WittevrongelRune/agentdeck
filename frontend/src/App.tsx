@@ -1,7 +1,24 @@
 import { useState, useRef } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import SplitPane from './components/SplitPane.js';
 import TerminalPane from './components/TerminalPane.js';
-import { PaneNode, splitNode, closeNode, updateRatio, countLeaves, computeLayout } from './types/pane.js';
+import {
+  PaneNode,
+  splitNode,
+  closeNode,
+  updateRatio,
+  countLeaves,
+  computeLayout,
+  swapLeaves,
+} from './types/pane.js';
 
 const MAX_TERMINALS = 10;
 const DIVIDER_PX = 4;
@@ -22,34 +39,32 @@ const TerminalIcon = () => (
 
 export default function App() {
   const [tree, setTree] = useState<PaneNode>({ type: 'leaf', id: 1 });
-  // allIds tracks every terminal that has ever been created (never removed from DOM)
   const [allIds, setAllIds] = useState<number[]>([1]);
+  const [dragId, setDragId] = useState<number | null>(null);
   const nextId = useRef<number>(2);
 
   const count = countLeaves(tree);
   const canSplit = count < MAX_TERMINALS;
-
+  const canDrag = count > 1;
   const layout = computeLayout(tree);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const handleSplit = (id: number, direction: 'h' | 'v') => {
     const newId = nextId.current++;
     setAllIds(prev => [...prev, newId]);
-    setTree((prev) => splitNode(prev, id, direction, newId));
+    setTree(prev => splitNode(prev, id, direction, newId));
   };
 
   const handleClose = (id: number) => {
-    setTree((prev) => {
-      const result = closeNode(prev, id);
-      return result ?? prev;
-    });
-    // Note: we intentionally keep the id in allIds so the TerminalPane stays
-    // mounted (hidden), which keeps the PTY session alive while the user could
-    // undo. For a true close we remove it after the state update.
+    setTree(prev => closeNode(prev, id) ?? prev);
     setAllIds(prev => prev.filter(i => i !== id));
   };
 
   const handleRatioChange = (path: string[], ratio: number) => {
-    setTree((prev) => updateRatio(prev, path, ratio));
+    setTree(prev => updateRatio(prev, path, ratio));
   };
 
   const handleAddTerminal = () => {
@@ -59,9 +74,19 @@ export default function App() {
     handleSplit(node.id, 'h');
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setDragId(event.active.id as number);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDragId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setTree(prev => swapLeaves(prev, active.id as number, over.id as number));
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0e1a' }}>
-      {/* Topbar */}
       <header style={{
         display: 'flex',
         alignItems: 'center',
@@ -126,48 +151,67 @@ export default function App() {
         )}
       </header>
 
-      {/* Terminal area */}
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+          {allIds.map(id => {
+            const rect = layout.get(id);
+            const visible = rect !== undefined;
+            return (
+              <div
+                key={id}
+                style={{
+                  position: 'absolute',
+                  left:   visible ? `calc(${rect!.left}% + ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
+                  top:    visible ? `calc(${rect!.top}%  + ${rect!.top  > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
+                  width:  visible ? `calc(${rect!.width}% - ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.left + rect!.width < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
+                  height: visible ? `calc(${rect!.height}% - ${rect!.top > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.top + rect!.height < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
+                  overflow: 'hidden',
+                }}
+              >
+                <TerminalPane
+                  id={id}
+                  canSplit={canSplit}
+                  canDrag={canDrag}
+                  onSplitH={() => handleSplit(id, 'h')}
+                  onSplitV={() => handleSplit(id, 'v')}
+                  onClose={count === 1 ? undefined : () => handleClose(id)}
+                />
+              </div>
+            );
+          })}
 
-        {/* Flat layer: one TerminalPane per id, absolutely positioned */}
-        {allIds.map(id => {
-          const rect = layout.get(id);
-          const visible = rect !== undefined;
-          return (
-            <div
-              key={id}
-              style={{
-                position: 'absolute',
-                // When not in layout (closed), park offscreen so xterm stays alive
-                // but doesn't interfere with visible panes
-                left:   visible ? `calc(${rect!.left}% + ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
-                top:    visible ? `calc(${rect!.top}%  + ${rect!.top  > 0 ? DIVIDER_PX / 2 : 0}px)` : '-9999px',
-                width:  visible ? `calc(${rect!.width}% - ${rect!.left > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.left + rect!.width < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
-                height: visible ? `calc(${rect!.height}% - ${rect!.top > 0 ? DIVIDER_PX / 2 : 0}px - ${rect!.top + rect!.height < 100 ? DIVIDER_PX / 2 : 0}px)` : '0',
-                overflow: 'hidden',
-              }}
-            >
-              <TerminalPane
-                id={id}
-                canSplit={canSplit}
-                canDrag={count > 1}
-                onSplitH={() => handleSplit(id, 'h')}
-                onSplitV={() => handleSplit(id, 'v')}
-                onClose={count === 1 ? undefined : () => handleClose(id)}
-              />
-            </div>
-          );
-        })}
-
-        {/* Divider overlay — pointer-events:none except on divider elements themselves */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <SplitPane
-            node={tree}
-            path={[]}
-            onRatioChange={handleRatioChange}
-          />
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            <SplitPane
+              node={tree}
+              path={[]}
+              onRatioChange={handleRatioChange}
+            />
+          </div>
         </div>
-      </div>
+
+        <DragOverlay dropAnimation={null}>
+          {dragId !== null ? (
+            <div style={{
+              padding: '4px 10px',
+              background: '#0d1117',
+              border: '1px solid #22c55e',
+              borderRadius: '4px',
+              color: '#22c55e',
+              fontFamily: "'Fira Code', monospace",
+              fontSize: '11px',
+              opacity: 0.9,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}>
+              terminal {dragId}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }
