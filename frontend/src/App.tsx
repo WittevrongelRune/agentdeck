@@ -150,6 +150,7 @@ export default function App() {
               <TerminalPane
                 id={id}
                 canSplit={canSplit}
+                canDrag={count > 1}
                 onSplitH={() => handleSplit(id, 'h')}
                 onSplitV={() => handleSplit(id, 'v')}
                 onClose={count === 1 ? undefined : () => handleClose(id)}

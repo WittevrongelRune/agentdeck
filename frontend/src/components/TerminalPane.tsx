@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
 import { useTerminal } from '../hooks/useTerminal.js';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import '@xterm/xterm/css/xterm.css';
 
 interface TerminalPaneProps {
   id: number;
   canSplit: boolean;
+  canDrag: boolean;
   onSplitH: () => void;
   onSplitV: () => void;
   onClose?: () => void;
@@ -17,7 +19,6 @@ const CloseIcon = () => (
   </svg>
 );
 
-// Vertical split (side by side)
 const SplitHIcon = () => (
   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="3" y="3" width="18" height="18" rx="1" />
@@ -25,7 +26,6 @@ const SplitHIcon = () => (
   </svg>
 );
 
-// Horizontal split (top/bottom)
 const SplitVIcon = () => (
   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="3" y="3" width="18" height="18" rx="1" />
@@ -68,30 +68,54 @@ function HeaderButton({
   );
 }
 
-export default function TerminalPane({ id, canSplit, onSplitH, onSplitV, onClose }: TerminalPaneProps) {
+export default function TerminalPane({ id, canSplit, canDrag, onSplitH, onSplitV, onClose }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   useTerminal(containerRef);
 
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id });
+
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id,
+    disabled: !canDrag,
+  });
+
   return (
     <div
-      style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+      ref={setDropRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
+        border: isOver ? '2px solid #22c55e' : '2px solid transparent',
+        borderRadius: '2px',
+        opacity: isDragging ? 0.5 : 1,
+        transition: 'border-color 100ms ease, opacity 150ms ease',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Pane header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 8px',
-        height: '28px',
-        minHeight: '28px',
-        background: '#0d1117',
-        borderBottom: '1px solid #1e2d3d',
-        flexShrink: 0,
-        gap: '4px',
-      }}>
+      <div
+        ref={setDragRef}
+        {...listeners}
+        {...attributes}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 8px',
+          height: '28px',
+          minHeight: '28px',
+          background: '#0d1117',
+          borderBottom: '1px solid #1e2d3d',
+          flexShrink: 0,
+          gap: '4px',
+          cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : 'default',
+          userSelect: 'none',
+        }}
+      >
         <span style={{
           fontFamily: "'Fira Code', monospace",
           fontSize: '11px',
@@ -120,7 +144,6 @@ export default function TerminalPane({ id, canSplit, onSplitH, onSplitV, onClose
         </div>
       </div>
 
-      {/* Terminal */}
       <div
         ref={containerRef}
         style={{
